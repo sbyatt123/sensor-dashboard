@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sensor Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0a0e12;--panel:#111820;--border:#1e2d3d;--accent:#00d4ff;--green:#00ff88;--amber:#ffaa00;--red:#ff3b3b;--text:#c8d8e8;--muted:#4a6070;--mono:'Share Tech Mono',monospace;--sans:'Barlow',sans-serif}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);font-weight:300;min-height:100vh;padding:24px}
+  body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,212,255,.012) 2px,rgba(0,212,255,.012) 4px);pointer-events:none;z-index:100}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:12px}
+  .logo{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:4px;text-transform:uppercase}
+  .logo span{color:var(--muted)}
+  .header-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  #connect-btn{font-family:var(--mono);font-size:12px;letter-spacing:2px;background:transparent;border:1px solid var(--accent);color:var(--accent);padding:8px 20px;cursor:pointer;transition:all .2s;text-transform:uppercase}
+  #connect-btn:hover{background:var(--accent);color:var(--bg)}
+  #connect-btn.connected{border-color:var(--green);color:var(--green)}
+  #connect-btn.connected:hover{background:var(--green);color:var(--bg)}
+  .status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted);margin-right:8px;transition:background .3s}
+  .status-dot.live{background:var(--green);animation:pulse 1.4s infinite}
+  .status-dot.alert{background:var(--red);animation:pulse .5s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  /* Settings panel */
+  .settings-wrap{position:relative}
+  .settings-btn{font-family:var(--mono);font-size:12px;letter-spacing:2px;background:transparent;border:1px solid var(--border);color:var(--muted);padding:8px 16px;cursor:pointer;transition:all .2s;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+  .settings-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .settings-btn .arrow{transition:transform .2s;font-size:9px}
+  .settings-btn.open .arrow{transform:rotate(180deg)}
+  .settings-panel{display:none;position:absolute;top:calc(100% + 8px);right:0;background:var(--panel);border:1px solid var(--border);padding:20px;z-index:200;min-width:320px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+  .settings-panel.open{display:block}
+  .settings-section{margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--border)}
+  .settings-section:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none}
+  .settings-title{font-family:var(--mono);font-size:10px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:12px}
+  .settings-row{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+  .settings-row:last-child{margin-bottom:0}
+  .settings-label{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .settings-input{font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 10px;width:100%;transition:border-color .2s}
+  .settings-input:focus{outline:none;border-color:var(--accent)}
+  .settings-save{font-family:var(--mono);font-size:11px;letter-spacing:2px;background:transparent;border:1px solid var(--accent);color:var(--accent);padding:7px 16px;cursor:pointer;width:100%;margin-top:12px;transition:all .2s;text-transform:uppercase}
+  .settings-save:hover{background:var(--accent);color:var(--bg)}
+  .settings-status{font-family:var(--mono);font-size:11px;margin-top:8px;text-align:center;min-height:16px;color:var(--green)}
+  .test-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+  .test-btn{font-family:var(--mono);font-size:11px;letter-spacing:1px;background:transparent;padding:7px 8px;cursor:pointer;transition:all .2s;text-transform:uppercase;border:1px solid var(--border);color:var(--muted)}
+  .test-btn:hover{border-color:var(--amber);color:var(--amber)}
+  .test-btn.testing{border-color:var(--amber);color:var(--amber);animation:pulse .8s infinite}
+
+  /* Toggle dropdown */
+  .toggle-wrap{position:relative}
+  #toggle-btn{font-family:var(--mono);font-size:12px;letter-spacing:2px;background:transparent;border:1px solid var(--border);color:var(--muted);padding:8px 16px;cursor:pointer;transition:all .2s;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+  #toggle-btn:hover{border-color:var(--accent);color:var(--accent)}
+  #toggle-btn .arrow{transition:transform .2s;font-size:9px}
+  #toggle-btn.open .arrow{transform:rotate(180deg)}
+  #toggle-panel{display:none;position:absolute;top:calc(100% + 8px);right:0;background:var(--panel);border:1px solid var(--border);padding:16px;z-index:200;min-width:220px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+  #toggle-panel.open{display:block}
+  .toggle-title{font-family:var(--mono);font-size:10px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+  .toggle-item{display:flex;align-items:center;gap:10px;padding:7px 0;cursor:pointer;user-select:none}
+  .toggle-item:hover .toggle-label{color:var(--accent)}
+  .toggle-cb{width:16px;height:16px;border:1px solid var(--border);background:var(--bg);flex-shrink:0;position:relative;transition:border-color .2s,background .2s;cursor:pointer}
+  .toggle-cb.checked{background:var(--accent);border-color:var(--accent)}
+  .toggle-cb.checked::after{content:'';position:absolute;left:4px;top:1px;width:5px;height:9px;border:2px solid var(--bg);border-left:none;border-top:none;transform:rotate(45deg)}
+  .toggle-label{font-family:var(--mono);font-size:12px;color:var(--text);transition:color .2s}
+
+  /* Grid */
+  .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;max-width:1100px;margin:0 auto}
+  .card{background:var(--panel);border:1px solid var(--border);padding:24px;position:relative;overflow:hidden;transition:border-color .3s}
+  .card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);opacity:.5;transition:background .3s,opacity .3s}
+  .card.danger::before{background:var(--red);opacity:1}
+  .card.warn::before{background:var(--amber);opacity:1}
+  .card.air-good::before{background:var(--green);opacity:1}
+  .card.air-mod::before{background:var(--amber);opacity:1}
+  .card.air-bad::before{background:var(--red);opacity:1}
+  .card.led-green::before{background:var(--green);opacity:1}
+  .card.led-red::before{background:var(--red);opacity:1}
+  .card.hidden{display:none}
+  .card-label{font-family:var(--mono);font-size:10px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:16px}
+  .big-value{font-family:var(--mono);font-size:48px;line-height:1;color:var(--accent);transition:color .3s}
+  .big-value .unit{font-size:16px;color:var(--muted);margin-left:4px}
+  .sub-value{font-family:var(--mono);font-size:13px;color:var(--muted);margin-top:8px}
+
+  /* LED */
+  .led-display{display:flex;align-items:center;gap:28px;margin-top:8px}
+  .led-bulb{width:52px;height:52px;border-radius:50%;border:3px solid var(--border);transition:background .4s,box-shadow .4s,border-color .4s;flex-shrink:0}
+  .led-bulb.green{background:var(--green);border-color:#00cc66;box-shadow:0 0 18px 4px rgba(0,255,136,.5)}
+  .led-bulb.red{background:var(--red);border-color:#cc2222;box-shadow:0 0 18px 4px rgba(255,59,59,.5);animation:led-flash .8s infinite alternate}
+  .led-bulb.off{background:#1a2530}
+  @keyframes led-flash{from{opacity:1}to{opacity:.5}}
+  .led-info{flex:1}
+  .led-status{font-family:var(--mono);font-size:18px;font-weight:bold;transition:color .3s}
+  .led-status.green{color:var(--green)}.led-status.red{color:var(--red)}.led-status.off{color:var(--muted)}
+  .led-reasons{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px;line-height:1.8}
+  .led-reasons span{display:block}
+  .led-reasons .triggered{color:var(--red)}.led-reasons .safe{color:var(--green)}
+
+  /* Air */
+  .pm-rows{margin-top:8px;display:flex;flex-direction:column;gap:10px}
+  .pm-row{display:flex;align-items:center;gap:10px}
+  .pm-label{font-family:var(--mono);font-size:11px;color:var(--muted);width:48px;flex-shrink:0}
+  .pm-bar-wrap{flex:1;background:var(--border);height:5px}
+  .pm-bar{height:100%;width:0%;transition:width .5s,background .3s}
+  .pm-val{font-family:var(--mono);font-size:12px;color:var(--text);width:60px;text-align:right;flex-shrink:0}
+  .air-badge{font-family:var(--mono);font-size:12px;margin-top:14px;padding:5px 10px;border:1px solid var(--border);display:inline-block;transition:color .3s,border-color .3s}
+
+  /* Prox */
+  .prox-bar-wrap{margin-top:14px;background:var(--border);height:6px}
+  .prox-bar{height:100%;background:var(--green);width:0%;transition:width .4s,background .3s}
+
+  /* Dwell */
+  .dwell-ring{position:relative;width:80px;height:80px;margin-top:16px}
+  .dwell-ring svg{transform:rotate(-90deg)}
+  .dwell-ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;color:var(--amber)}
+
+  /* Emergency */
+  .emergency-banner{grid-column:1/-1;background:#1a0000;border:1px solid var(--red);padding:20px 28px;display:none;align-items:center;gap:20px;animation:flash-border .6s infinite alternate}
+  .emergency-banner.active{display:flex}
+  @keyframes flash-border{from{border-color:var(--red)}to{border-color:#600}}
+  .emergency-icon{font-size:32px;flex-shrink:0}
+  .emergency-text{font-family:var(--mono);font-size:18px;color:var(--red);letter-spacing:3px;text-transform:uppercase}
+  .emergency-sub{font-family:var(--mono);font-size:11px;color:#ff8888;margin-top:4px}
+
+  /* Notification toast */
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--panel);border:1px solid var(--border);padding:14px 20px;font-family:var(--mono);font-size:12px;color:var(--text);z-index:500;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;max-width:320px}
+  .toast.show{opacity:1;transform:translateY(0)}
+  .toast.success{border-color:var(--green);color:var(--green)}
+  .toast.error{border-color:var(--red);color:var(--red)}
+
+  /* Log */
+  .log-card{grid-column:1/-1;max-height:150px;overflow-y:auto}
+  .log-card::-webkit-scrollbar{width:4px}
+  .log-card::-webkit-scrollbar-thumb{background:var(--muted)}
+  .log-entry{font-family:var(--mono);font-size:11px;padding:4px 0;border-bottom:1px solid #1a2530;display:flex;gap:12px}
+  .log-time{color:var(--muted);flex-shrink:0}
+  .log-msg{color:var(--text)}.log-msg.alert{color:var(--red)}.log-msg.warn{color:var(--amber)}.log-msg.good{color:var(--green)}
+  .no-serial{grid-column:1/-1;text-align:center;padding:48px;font-family:var(--mono);font-size:13px;color:var(--muted);letter-spacing:2px;border:1px dashed var(--border)}
+  .no-serial strong{color:var(--accent);display:block;margin-bottom:8px;font-size:16px}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<header>
+  <div class="logo">SENSOR/<span>SYS</span> — ARDUINO UNO</div>
+  <div class="header-right">
+    <span style="font-family:var(--mono);font-size:11px;letter-spacing:1px">
+      <span class="status-dot" id="dot"></span>
+      <span id="status-text">DISCONNECTED</span>
+    </span>
+
+    <!-- Settings (Twilio config) -->
+    <div class="settings-wrap">
+      <button class="settings-btn" id="settings-btn" onclick="toggleSettings()">
+        ⚙ Alerts <span class="arrow">▼</span>
+      </button>
+      <div class="settings-panel" id="settings-panel">
+        <div class="settings-section">
+          <div class="settings-title">Twilio Configuration</div>
+          <div class="settings-row">
+            <span class="settings-label">Account SID</span>
+            <input class="settings-input" id="cfg-sid" type="text" placeholder="ACxxxxxxxxxxxxxxxx">
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">Auth Token</span>
+            <input class="settings-input" id="cfg-token" type="password" placeholder="Your auth token">
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">Twilio Phone Number</span>
+            <input class="settings-input" id="cfg-from" type="text" placeholder="+12015551234">
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">Alert Phone Number (AU)</span>
+            <input class="settings-input" id="cfg-to" type="text" placeholder="+61412345678">
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">SMS Function URL</span>
+            <input class="settings-input" id="cfg-sms-url" type="text" placeholder="https://sensor-alerts-XXXX.twil.io/send-sms">
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">Call Function URL</span>
+            <input class="settings-input" id="cfg-call-url" type="text" placeholder="https://sensor-alerts-XXXX.twil.io/make-call">
+          </div>
+          <button class="settings-save" onclick="saveConfig()">Save Configuration</button>
+          <div class="settings-status" id="cfg-status"></div>
+          <div class="test-btns">
+            <button class="test-btn" id="test-sms-btn" onclick="testSMS()">▶ Test SMS</button>
+            <button class="test-btn" id="test-call-btn" onclick="testCall()">▶ Test Call</button>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-title">Alert Settings</div>
+          <div class="toggle-item" onclick="toggleAlertType('sms')">
+            <div class="toggle-cb checked" id="cb-alert-sms"></div>
+            <span class="toggle-label">SMS on any alarm</span>
+          </div>
+          <div class="toggle-item" onclick="toggleAlertType('call')">
+            <div class="toggle-cb checked" id="cb-alert-call"></div>
+            <span class="toggle-label">Voice call on emergency button</span>
+          </div>
+          <div class="settings-row" style="margin-top:10px">
+            <span class="settings-label">SMS cooldown (seconds)</span>
+            <input class="settings-input" id="cfg-cooldown" type="number" value="60" min="10" max="3600">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Component toggle -->
+    <div class="toggle-wrap">
+      <button id="toggle-btn" onclick="togglePanel()">Components <span class="arrow">▼</span></button>
+      <div id="toggle-panel">
+        <div class="toggle-title">Show / Hide</div>
+        <div class="toggle-item" onclick="toggleCard('led')"><div class="toggle-cb checked" id="cb-led"></div><span class="toggle-label">System Status (LED)</span></div>
+        <div class="toggle-item" onclick="toggleCard('temp')"><div class="toggle-cb checked" id="cb-temp"></div><span class="toggle-label">Temperature</span></div>
+        <div class="toggle-item" onclick="toggleCard('hum')"><div class="toggle-cb checked" id="cb-hum"></div><span class="toggle-label">Humidity</span></div>
+        <div class="toggle-item" onclick="toggleCard('air')"><div class="toggle-cb checked" id="cb-air"></div><span class="toggle-label">Air Quality (PMS5003)</span></div>
+        <div class="toggle-item" onclick="toggleCard('prox')"><div class="toggle-cb checked" id="cb-prox"></div><span class="toggle-label">Proximity</span></div>
+        <div class="toggle-item" onclick="toggleCard('dwell')"><div class="toggle-cb checked" id="cb-dwell"></div><span class="toggle-label">Dwell Timer</span></div>
+        <div class="toggle-item" onclick="toggleCard('log')"><div class="toggle-cb checked" id="cb-log"></div><span class="toggle-label">Event Log</span></div>
+      </div>
+    </div>
+
+    <button id="connect-btn" onclick="toggleSerial()">Connect</button>
+  </div>
+</header>
+
+<div class="grid" id="main-grid">
+  <div class="no-serial" id="no-serial">
+    <strong>No device connected</strong>
+    Click <em>Connect</em> above and select your Arduino port<br><br>
+    Requires Chrome or Edge · Close Arduino IDE Serial Monitor first
+  </div>
+</div>
+
+<script>
+// ── Config ───────────────────────────────────────────────
+let cfg = {
+  sid: '', token: '', from: '', to: '',
+  smsUrl: '', callUrl: '', cooldown: 60,
+  alertSms: true, alertCall: true,
+};
+
+// Cooldown tracking per alarm type
+const lastAlertTime = {};
+
+function loadConfig() {
+  const saved = localStorage.getItem('sensorCfg');
+  if (saved) {
+    cfg = {...cfg, ...JSON.parse(saved)};
+    document.getElementById('cfg-sid').value      = cfg.sid      || '';
+    document.getElementById('cfg-token').value    = cfg.token    || '';
+    document.getElementById('cfg-from').value     = cfg.from     || '';
+    document.getElementById('cfg-to').value       = cfg.to       || '';
+    document.getElementById('cfg-sms-url').value  = cfg.smsUrl   || '';
+    document.getElementById('cfg-call-url').value = cfg.callUrl  || '';
+    document.getElementById('cfg-cooldown').value = cfg.cooldown || 60;
+    document.getElementById('cb-alert-sms').classList.toggle('checked', cfg.alertSms !== false);
+    document.getElementById('cb-alert-call').classList.toggle('checked', cfg.alertCall !== false);
+  }
+}
+
+function saveConfig() {
+  cfg.sid      = document.getElementById('cfg-sid').value.trim();
+  cfg.token    = document.getElementById('cfg-token').value.trim();
+  cfg.from     = document.getElementById('cfg-from').value.trim();
+  cfg.to       = document.getElementById('cfg-to').value.trim();
+  cfg.smsUrl   = document.getElementById('cfg-sms-url').value.trim();
+  cfg.callUrl  = document.getElementById('cfg-call-url').value.trim();
+  cfg.cooldown = parseInt(document.getElementById('cfg-cooldown').value) || 60;
+  localStorage.setItem('sensorCfg', JSON.stringify(cfg));
+  const st = document.getElementById('cfg-status');
+  st.textContent = '✓ Saved';
+  setTimeout(() => st.textContent = '', 2000);
+}
+
+async function testSMS() {
+  if (!cfg.smsUrl || !cfg.to) {
+    document.getElementById('cfg-status').textContent = '✕ Fill in URLs and phone number first';
+    document.getElementById('cfg-status').style.color = 'var(--red)';
+    setTimeout(() => { document.getElementById('cfg-status').textContent=''; document.getElementById('cfg-status').style.color='var(--green)'; }, 3000);
+    return;
+  }
+  const btn = document.getElementById('test-sms-btn');
+  btn.classList.add('testing'); btn.textContent = '⏳ Sending...';
+  const st = document.getElementById('cfg-status');
+  try {
+    const res = await fetch(cfg.smsUrl, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ to: cfg.to, message: 'Test message from your Sensor Dashboard — SMS alerts are working correctly.' }),
+    });
+    const data = await res.json();
+    if (data.success) { st.style.color='var(--green)'; st.textContent='✓ Test SMS sent!'; showToast('Test SMS sent successfully!', 'success'); }
+    else { st.style.color='var(--red)'; st.textContent='✕ Failed: ' + data.error; }
+  } catch(e) {
+    st.style.color='var(--red)'; st.textContent='✕ Error: ' + e.message;
+  }
+  btn.classList.remove('testing'); btn.textContent='▶ Test SMS';
+  setTimeout(() => { st.textContent=''; st.style.color='var(--green)'; }, 4000);
+}
+
+async function testCall() {
+  if (!cfg.callUrl || !cfg.to) {
+    document.getElementById('cfg-status').textContent = '✕ Fill in URLs and phone number first';
+    document.getElementById('cfg-status').style.color = 'var(--red)';
+    setTimeout(() => { document.getElementById('cfg-status').textContent=''; document.getElementById('cfg-status').style.color='var(--green)'; }, 3000);
+    return;
+  }
+  const btn = document.getElementById('test-call-btn');
+  btn.classList.add('testing'); btn.textContent = '⏳ Calling...';
+  const st = document.getElementById('cfg-status');
+  try {
+    const res = await fetch(cfg.callUrl, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ to: cfg.to, message: 'This is a test call from your Sensor Dashboard. Voice call alerts are working correctly.' }),
+    });
+    const data = await res.json();
+    if (data.success) { st.style.color='var(--green)'; st.textContent='✓ Test call initiated!'; showToast('Test voice call initiated!', 'success'); }
+    else { st.style.color='var(--red)'; st.textContent='✕ Failed: ' + data.error; }
+  } catch(e) {
+    st.style.color='var(--red)'; st.textContent='✕ Error: ' + e.message;
+  }
+  btn.classList.remove('testing'); btn.textContent='▶ Test Call';
+  setTimeout(() => { st.textContent=''; st.style.color='var(--green)'; }, 4000);
+}
+
+function toggleAlertType(type) {
+  if (type === 'sms') {
+    cfg.alertSms = !cfg.alertSms;
+    document.getElementById('cb-alert-sms').classList.toggle('checked', cfg.alertSms);
+  } else {
+    cfg.alertCall = !cfg.alertCall;
+    document.getElementById('cb-alert-call').classList.toggle('checked', cfg.alertCall);
+  }
+  localStorage.setItem('sensorCfg', JSON.stringify(cfg));
+}
+
+// ── Twilio ───────────────────────────────────────────────
+async function sendSMS(alarmKey, message) {
+  if (!cfg.alertSms || !cfg.smsUrl || !cfg.to) return;
+
+  // Cooldown check
+  const now = Date.now();
+  if (lastAlertTime[alarmKey] && (now - lastAlertTime[alarmKey]) < cfg.cooldown * 1000) return;
+  lastAlertTime[alarmKey] = now;
+
+  try {
+    const res = await fetch(cfg.smsUrl, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ to: cfg.to, message }),
+    });
+    const data = await res.json();
+    if (data.success) showToast('SMS sent: ' + message.slice(0, 40), 'success');
+    else showToast('SMS failed: ' + data.error, 'error');
+    log('SMS sent: ' + message, 'good');
+  } catch(e) {
+    showToast('SMS error: ' + e.message, 'error');
+    log('SMS error: ' + e.message, 'alert');
+  }
+}
+
+async function makeCall(message) {
+  if (!cfg.alertCall || !cfg.callUrl || !cfg.to) return;
+  const cooldownKey = 'voice_call';
+  const now = Date.now();
+  if (lastAlertTime[cooldownKey] && (now - lastAlertTime[cooldownKey]) < 30000) return; // 30s call cooldown
+  lastAlertTime[cooldownKey] = now;
+
+  try {
+    const res = await fetch(cfg.callUrl, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ to: cfg.to, message }),
+    });
+    const data = await res.json();
+    if (data.success) showToast('Voice call initiated', 'success');
+    else showToast('Call failed: ' + data.error, 'error');
+    log('Voice call initiated', 'good');
+  } catch(e) {
+    showToast('Call error: ' + e.message, 'error');
+    log('Call error: ' + e.message, 'alert');
+  }
+}
+
+// ── Toast ────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = 'toast', 3500);
+}
+
+// ── Dropdowns ────────────────────────────────────────────
+function toggleSettings() {
+  document.getElementById('settings-btn').classList.toggle('open');
+  document.getElementById('settings-panel').classList.toggle('open');
+}
+function togglePanel() {
+  document.getElementById('toggle-btn').classList.toggle('open');
+  document.getElementById('toggle-panel').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  if (!document.querySelector('.settings-wrap').contains(e.target)) {
+    document.getElementById('settings-btn').classList.remove('open');
+    document.getElementById('settings-panel').classList.remove('open');
+  }
+  if (!document.querySelector('.toggle-wrap').contains(e.target)) {
+    document.getElementById('toggle-btn').classList.remove('open');
+    document.getElementById('toggle-panel').classList.remove('open');
+  }
+});
+
+// ── Card visibility ──────────────────────────────────────
+const cardVisible = {led:true,temp:true,hum:true,air:true,prox:true,dwell:true,log:true};
+const cardIds = {led:['led-card'],temp:['temp-card'],hum:['hum-card'],air:['air-card'],prox:['prox-card'],dwell:['dwell-card'],log:['log-card']};
+function toggleCard(key) {
+  cardVisible[key] = !cardVisible[key];
+  const cb = document.getElementById('cb-'+key);
+  if (cb) cb.classList.toggle('checked', cardVisible[key]);
+  cardIds[key].forEach(id => { const el = g(id); if (el) el.classList.toggle('hidden', !cardVisible[key]); });
+}
+function reapplyVisibility() {
+  Object.keys(cardVisible).forEach(key => {
+    cardIds[key].forEach(id => { const el = g(id); if (el) el.classList.toggle('hidden', !cardVisible[key]); });
+  });
+}
+
+// ── Helpers ──────────────────────────────────────────────
+let port, reader, connected = false;
+let dwellStart = null, dwellActive = false;
+let lastTemp = null, lastHum = null, lastDist = null, lastPM25 = null;
+let alarmStates = {proximity:false,humidity:false,temp:false,air:false};
+
+function pmColor(v){return v<=12?'var(--green)':v<=35?'var(--accent)':v<=55?'var(--amber)':'var(--red)'}
+function pmQuality(v){return v<=12?'Good':v<=35?'Moderate':v<=55?'Unhealthy – Sensitive':v<=150?'Unhealthy':v<=250?'Very Unhealthy':'Hazardous'}
+function g(id){return document.getElementById(id)}
+
+function log(msg, type='') {
+  const el = g('log-entries'); if (!el) return;
+  const t = new Date().toTimeString().slice(0,8);
+  const d = document.createElement('div');
+  d.className = 'log-entry';
+  d.innerHTML = `<span class="log-time">${t}</span><span class="log-msg ${type}">${msg}</span>`;
+  el.prepend(d);
+  while (el.children.length > 60) el.removeChild(el.lastChild);
+}
+
+function updateLEDCard(state) {
+  const bulb=g('led-bulb'),status=g('led-status'),card=g('led-card');
+  if (!bulb) return;
+  bulb.className='led-bulb '+state;
+  status.className='led-status '+state;
+  card.className='card'+(state==='red'?' led-red':state==='green'?' led-green':'');
+  if (!cardVisible['led']) card.classList.add('hidden');
+  status.textContent=state==='green'?'ALL CLEAR':state==='red'?'ALERT':'WAITING...';
+  const reasons=[
+    {key:'proximity',label:'Proximity (object >10s close)'},
+    {key:'humidity', label:'Humidity >90%'},
+    {key:'temp',     label:'Temperature >40°C'},
+    {key:'air',      label:'PM2.5 >35 µg/m³'},
+  ];
+  g('led-reasons').innerHTML=reasons.map(r=>
+    `<span class="${alarmStates[r.key]?'triggered':'safe'}">${alarmStates[r.key]?'✕':'✓'} ${r.label}</span>`
+  ).join('');
+}
+
+// ── JSON handler ─────────────────────────────────────────
+function handleJSON(obj) {
+  if (obj.type==='env') {
+    lastTemp=obj.temp; lastHum=obj.humidity;
+    g('temp-val').innerHTML=obj.temp.toFixed(1)+'<span class="unit">°C</span>';
+    g('hum-val').innerHTML=obj.humidity.toFixed(1)+'<span class="unit">%RH</span>';
+    g('temp-feel').textContent=obj.temp<10?'Cold':obj.temp<20?'Cool':obj.temp<27?'Comfortable':obj.temp<35?'Warm':'Hot';
+    g('hum-feel').textContent=obj.humidity<30?'Dry':obj.humidity<60?'Comfortable':obj.humidity<90?'Humid':'Very Humid';
+    g('temp-card').className='card'+(obj.temp>40?' danger':obj.temp>35?' warn':'');
+    g('hum-card').className='card'+(obj.humidity>90?' danger':obj.humidity>70?' warn':'');
+    reapplyVisibility();
+    const prevTemp=alarmStates.temp, prevHum=alarmStates.humidity;
+    alarmStates.temp=obj.temp>40; alarmStates.humidity=obj.humidity>90;
+    if (!prevTemp && alarmStates.temp) sendSMS('temp', `ALERT: Temperature is ${obj.temp.toFixed(1)}°C — above 40°C threshold. Location: Sensor System.`);
+    if (!prevHum  && alarmStates.humidity) sendSMS('humidity', `ALERT: Humidity is ${obj.humidity.toFixed(1)}% — above 90% threshold. Location: Sensor System.`);
+    log(`Temp ${obj.temp.toFixed(1)}°C  Humidity ${obj.humidity.toFixed(1)}%`);
+  }
+
+  if (obj.type==='air') {
+    lastPM25=obj.pm25;
+    [['pm10',obj.pm10],['pm25',obj.pm25],['pm100',obj.pm100]].forEach(([k,v])=>{
+      g('val-'+k).textContent=v+' µg/m³';
+      g('bar-'+k).style.width=Math.min(100,v/200*100)+'%';
+      g('bar-'+k).style.background=pmColor(v);
+    });
+    const q=pmQuality(obj.pm25),c=pmColor(obj.pm25);
+    g('air-badge').textContent=q; g('air-badge').style.color=c; g('air-badge').style.borderColor=c;
+    g('air-card').className='card'+(obj.pm25<=12?' air-good':obj.pm25<=35?' air-mod':' air-bad');
+    reapplyVisibility();
+    alarmStates.air=obj.pm25>35;
+    log(`PM1.0:${obj.pm10}  PM2.5:${obj.pm25}  PM10:${obj.pm100} µg/m³ — ${q}`,obj.pm25>35?'warn':'');
+  }
+
+  if (obj.type==='prox') {
+    lastDist=obj.dist; const dist=obj.dist;
+    if (dist>0) {
+      g('dist-val').innerHTML=dist.toFixed(0)+'<span class="unit">cm</span>';
+      const pct=Math.max(0,Math.min(100,(1-dist/200)*100));
+      g('prox-bar').style.width=pct+'%';
+      g('prox-bar').style.background=dist<50?'var(--red)':dist<100?'var(--amber)':'var(--green)';
+    } else {
+      g('dist-val').innerHTML='---<span class="unit">cm</span>';
+      g('prox-bar').style.width='0%';
+    }
+    if (obj.alarm){g('prox-status').textContent='⚠ PROXIMITY ALARM';g('prox-card').className='card danger';}
+    else if(obj.close){g('prox-status').textContent='Object close — timing...';g('prox-card').className='card warn';if(!dwellActive){dwellActive=true;dwellStart=Date.now();}}
+    else{g('prox-status').textContent=dist>0?'Clear — '+dist.toFixed(0)+'cm':'Out of range';g('prox-card').className='card';dwellActive=false;dwellStart=null;}
+    reapplyVisibility();
+    alarmStates.proximity=obj.alarm;
+    const dwell=dwellActive?Math.min(10,(Date.now()-dwellStart)/1000):0;
+    g('dwell-arc').style.strokeDashoffset=213.6-(dwell/10)*213.6;
+    g('dwell-label').textContent=dwell.toFixed(0)+'s';
+    g('dwell-status').textContent=dwellActive?`Close for ${dwell.toFixed(0)}s (alarm at 10s)`:'No object in range';
+  }
+
+  if (obj.type==='led') {
+    updateLEDCard(obj.state);
+    if (obj.state==='red')   log('LED → RED: hazard detected','alert');
+    if (obj.state==='green') log('LED → GREEN: all clear','good');
+  }
+
+  if (obj.type==='alarm') {
+    const msgs={
+      'proximity': ['PROXIMITY ALARM — object within 2m for 10s+','alert'],
+      'air':       ['AIR QUALITY ALARM — PM2.5 above 35 µg/m³','alert'],
+      'clear-prox':['Proximity cleared','good'],
+      'clear-air': ['Air quality back to safe levels','good'],
+    };
+    if (msgs[obj.alarm]) log(...msgs[obj.alarm]);
+    if (obj.alarm==='proximity') sendSMS('proximity', `ALARM: Object detected within 2 metres for over 10 seconds. Check sensor system immediately.`);
+    if (obj.alarm==='air')       sendSMS('air', `ALARM: Hazardous air quality detected. PM2.5 above safe threshold. Ventilate area immediately.`);
+    if (obj.alarm==='clear-prox'){dwellActive=false;dwellStart=null;alarmStates.proximity=false;}
+    if (obj.alarm==='clear-air') alarmStates.air=false;
+  }
+
+  if (obj.type==='emergency') {
+    const banner=g('emergency-banner'); banner.classList.add('active');
+    g('dot').className='status-dot alert';
+    const parts=[
+      lastTemp!=null?`Temperature: ${lastTemp.toFixed(1)} degrees Celsius`:null,
+      lastHum!=null?`Humidity: ${lastHum.toFixed(1)} percent`:null,
+      lastPM25!=null?`P M 2.5: ${lastPM25} micrograms per cubic metre`:null,
+      lastDist!=null&&lastDist>0?`Object distance: ${lastDist.toFixed(0)} centimetres`:null,
+    ].filter(Boolean);
+    const smsText = `EMERGENCY: Button pressed on sensor system. ${parts.join('. ')}.`;
+    const callText = `Emergency alert. The emergency button has been pressed on the sensor system. ${parts.join('. ')}. Please respond immediately.`;
+    g('emergency-sub').textContent = parts.join(' | ') || 'No sensor data yet';
+    log('🚨 EMERGENCY BUTTON PRESSED','alert');
+    sendSMS('emergency', smsText);
+    makeCall(callText);
+    setTimeout(()=>{banner.classList.remove('active');g('dot').className='status-dot live';},5000);
+  }
+
+  if (obj.type==='status') updateLEDCard('off');
+}
+
+function buildUI() {
+  const grid=g('main-grid');
+  grid.innerHTML=`
+    <div class="emergency-banner" id="emergency-banner">
+      <div class="emergency-icon">⚠</div>
+      <div><div class="emergency-text">Emergency — Button Pressed</div><div class="emergency-sub" id="emergency-sub">Waiting for data...</div></div>
+    </div>
+    <div class="card" id="led-card">
+      <div class="card-label">● System Status — LED</div>
+      <div class="led-display">
+        <div class="led-bulb off" id="led-bulb"></div>
+        <div class="led-info">
+          <div class="led-status off" id="led-status">WAITING...</div>
+          <div class="led-reasons" id="led-reasons"><span>Waiting for data...</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="temp-card">
+      <div class="card-label">● Temperature</div>
+      <div class="big-value" id="temp-val">--.-<span class="unit">°C</span></div>
+      <div class="sub-value" id="temp-feel">Waiting...</div>
+    </div>
+    <div class="card" id="hum-card">
+      <div class="card-label">● Humidity</div>
+      <div class="big-value" id="hum-val">--.-<span class="unit">%RH</span></div>
+      <div class="sub-value" id="hum-feel">Waiting...</div>
+    </div>
+    <div class="card" id="air-card">
+      <div class="card-label">● Air Quality — PMS5003</div>
+      <div class="pm-rows">
+        <div class="pm-row"><span class="pm-label">PM1.0</span><div class="pm-bar-wrap"><div class="pm-bar" id="bar-pm10"></div></div><span class="pm-val" id="val-pm10">-- µg/m³</span></div>
+        <div class="pm-row"><span class="pm-label">PM2.5</span><div class="pm-bar-wrap"><div class="pm-bar" id="bar-pm25"></div></div><span class="pm-val" id="val-pm25">-- µg/m³</span></div>
+        <div class="pm-row"><span class="pm-label">PM10</span><div class="pm-bar-wrap"><div class="pm-bar" id="bar-pm100"></div></div><span class="pm-val" id="val-pm100">-- µg/m³</span></div>
+      </div>
+      <div class="air-badge" id="air-badge">Waiting...</div>
+    </div>
+    <div class="card" id="prox-card">
+      <div class="card-label">● Proximity</div>
+      <div class="big-value" id="dist-val">---<span class="unit">cm</span></div>
+      <div class="prox-bar-wrap"><div class="prox-bar" id="prox-bar"></div></div>
+      <div class="sub-value" id="prox-status" style="margin-top:10px">Waiting...</div>
+    </div>
+    <div class="card" id="dwell-card">
+      <div class="card-label">● Dwell Timer</div>
+      <div class="dwell-ring">
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="34" fill="none" stroke="#1e2d3d" stroke-width="6"/>
+          <circle cx="40" cy="40" r="34" fill="none" stroke="#ffaa00" stroke-width="6" stroke-dasharray="213.6" id="dwell-arc" stroke-dashoffset="213.6" stroke-linecap="round" style="transition:stroke-dashoffset .4s"/>
+        </svg>
+        <div class="dwell-ring-label" id="dwell-label">0s</div>
+      </div>
+      <div class="sub-value" id="dwell-status" style="margin-top:8px">No object in range</div>
+    </div>
+    <div class="card log-card" id="log-card">
+      <div class="card-label" style="margin-bottom:8px">● Event log</div>
+      <div id="log-entries"></div>
+    </div>`;
+  reapplyVisibility();
+}
+
+async function toggleSerial() {
+  if (connected) {
+    try{await reader.cancel();}catch(e){}
+    connected=false;
+    g('connect-btn').textContent='Connect'; g('connect-btn').className='';
+    g('dot').className='status-dot'; g('status-text').textContent='DISCONNECTED';
+    g('main-grid').innerHTML='<div class="no-serial"><strong>Disconnected</strong> Click <em>Connect</em> to reconnect.</div>';
+    return;
+  }
+  if (!('serial' in navigator)){alert('Web Serial not supported. Use Chrome or Edge.');return;}
+  try {
+    port=await navigator.serial.requestPort();
+    await port.open({baudRate:9600});
+    connected=true;
+    g('connect-btn').textContent='Disconnect'; g('connect-btn').className='connected';
+    g('dot').className='status-dot live'; g('status-text').textContent='LIVE';
+    buildUI(); log('Connected to Arduino','good');
+    const decoder=new TextDecoderStream();
+    port.readable.pipeTo(decoder.writable);
+    reader=decoder.readable.getReader();
+    let buf='';
+    while(true){
+      const{value,done}=await reader.read();
+      if(done) break;
+      buf+=value;
+      let lines=buf.split('\n'); buf=lines.pop();
+      for(const line of lines){
+        const t=line.trim(); if(!t) continue;
+        try{handleJSON(JSON.parse(t));}catch(e){if(t.length) log(t);}
+      }
+    }
+  } catch(e){if(e.name!=='NotFoundError') alert('Serial error: '+e.message);connected=false;}
+}
+
+loadConfig();
+</script>
+</body>
+</html>
