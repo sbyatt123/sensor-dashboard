@@ -530,7 +530,7 @@ function handleJSON(obj) {
       'clear-air': ['Air quality back to safe levels','good'],
     };
     if (msgs[obj.alarm]) log(...msgs[obj.alarm]);
-    if (obj.alarm==='proximity') sendSMS('proximity', `ALARM: Object detected within 2 metres for over 10 seconds. Check sensor system immediately.`);
+    if (obj.alarm==='proximity') sendSMS('proximity', `ALARM: Object detected within 50 centimetres for over 2 seconds. Check sensor system immediately.`);
     if (obj.alarm==='air')       sendSMS('air', `ALARM: Hazardous air quality detected. PM2.5 above safe threshold. Ventilate area immediately.`);
     if (obj.alarm==='clear-prox'){dwellActive=false;dwellStart=null;alarmStates.proximity=false;}
     if (obj.alarm==='clear-air') alarmStates.air=false;
