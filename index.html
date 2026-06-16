@@ -510,10 +510,10 @@ function handleJSON(obj) {
     else{g('prox-status').textContent=dist>0?'Clear — '+dist.toFixed(0)+'cm':'Out of range';g('prox-card').className='card';dwellActive=false;dwellStart=null;}
     reapplyVisibility();
     alarmStates.proximity=obj.alarm;
-    const dwell=dwellActive?Math.min(10,(Date.now()-dwellStart)/1000):0;
-    g('dwell-arc').style.strokeDashoffset=213.6-(dwell/10)*213.6;
-    g('dwell-label').textContent=dwell.toFixed(0)+'s';
-    g('dwell-status').textContent=dwellActive?`Close for ${dwell.toFixed(0)}s (alarm at 10s)`:'No object in range';
+    const dwell = dwellActive ? Math.min(2, (Date.now()-dwellStart)/1000) : 0;
+    g('dwell-arc').style.strokeDashoffset = 213.6 - (dwell/2)*213.6;
+    g('dwell-label').textContent = dwell.toFixed(0) + 's';
+    g('dwell-status').textContent = dwellActive ? `Close for ${dwell.toFixed(0)}s (alarm at 2s)` : 'No object in range';
   }
 
   if (obj.type==='led') {
